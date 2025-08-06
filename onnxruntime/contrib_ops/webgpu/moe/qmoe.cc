@@ -6,6 +6,7 @@
 #include "core/providers/webgpu/webgpu_supported_types.h"
 #include "contrib_ops/webgpu/webgpu_contrib_kernels.h"
 #include "contrib_ops/webgpu/moe/qmoe.h"
+#include "contrib_ops/cpu/quantization/moe_helper.h"
 
 namespace onnxruntime {
 namespace contrib {
@@ -59,11 +60,13 @@ Status QMoE::ComputeInternal(ComputeContext& context) const {
   MoEQuantType quant_type = expert_weight_bits_ == 4 ? MoEQuantType::UINT4 : MoEQuantType::UINT8;
   MoEParameters moe_params;
 
-  ORT_RETURN_IF_ERROR(CheckInputs(moe_params, quant_type, input, router_probs, fc1_experts_weights,
-                                  fc1_experts_bias_optional, fc2_experts_weights, fc2_experts_bias_optional,
-                                  fc3_experts_weights_optional, fc3_experts_bias_optional));
-  ORT_RETURN_IF_ERROR(CheckInputScales(fc1_scales, fc2_scales, fc3_scales_optional, moe_params.num_experts,
-                                       moe_params.hidden_size, moe_params.inter_size, activation_type_));
+  ORT_RETURN_IF_ERROR(::onnxruntime::contrib::moe_helper::CheckInputs<Tensor>(
+      moe_params, input, router_probs,
+      fc1_experts_weights, fc1_experts_bias_optional, fc1_scales,
+      fc2_experts_weights, fc2_experts_bias_optional, fc2_scales,
+      fc3_experts_weights_optional, fc3_experts_bias_optional, fc3_scales_optional,
+      expert_weight_bits_ == 4 ? 2 : 1,
+      activation_type_ == MoEActivationType::SwiGLU));
 
 
   const auto& input_shape = input->Shape();
@@ -84,17 +87,17 @@ Status QMoE::ComputeInternal(ComputeContext& context) const {
 
 
   /*
-  export_ids = Gate(input, router_probs)
-  for (expert_id in export_ids):
-    fc1_output = FC1(input, expert_id)
-    fc1_output = Activation(fc1_output)
-    output = FC2(fc1_output, expert_id)
+    export_ids, router_weights = Gate(input, router_probs)
+    for expert_id in export_ids:
+      # nbitmm with expert_id[] passed in via input and index passed in via uniform?
+      fc1_output = FC1(input, expert_id)
+      fc1_output = Activation(fc1_output + fc1_bias)
+      fc2_output = FC2(fc1_output, expert_id)
+      output = output * fc2_output
   */
 
   auto* output_tensor = context.Output(0, input_shape);
   int output_size = static_cast<int>(input_shape.Size());
-
-
 
   QMoEProgram program{input_shape, activation_type_};
 

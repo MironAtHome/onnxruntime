@@ -7,6 +7,7 @@
 #include "contrib_ops/webgpu/webgpu_contrib_kernels.h"
 #include "contrib_ops/webgpu/moe/moe_base.h"
 #include "contrib_ops/webgpu/moe/moe.h"
+#include "contrib_ops/cpu/quantization/moe_helper.h"
 
 namespace onnxruntime {
 namespace contrib {
@@ -53,15 +54,6 @@ Status MoE::ComputeInternal(ComputeContext& context) const {
   const Tensor* fc2_experts_bias = context.Input(5);     // (num_experts, hidden_size, inter_size)
   const Tensor* fc3_experts_weights = context.Input(6);  // (num_experts, hidden_size, inter_size)
   const Tensor* fc3_experts_bias = context.Input(7);     // (num_experts, hidden_size, inter_size)
-
-  MoEParameters moe_params;
-  MoEQuantType quant_type = MoEQuantType::None;
-
-  ORT_RETURN_IF_ERROR(CheckInputs(moe_params, quant_type, input, router_probs,
-                                  fc1_experts_weights, fc1_experts_bias,
-                                  fc2_experts_weights, fc2_experts_bias,
-                                  fc3_experts_weights, fc3_experts_bias));
-
   const auto& input_shape = input->Shape();
 
   auto* output_tensor = context.Output(0, input_shape);
