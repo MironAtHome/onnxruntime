@@ -179,7 +179,8 @@ Status QMoE::ComputeInternal(ComputeContext& context) const {
       .AddInputs({{input, ProgramTensorMetadataDependency::Type}})
       .AddOutput({&router_idx, ProgramTensorMetadataDependency::None})
       .AddOutput({&router_values, ProgramTensorMetadataDependency::None})
-      .SetDispatchGroupSize(moe_params.num_experts, moe_params.num_rows)
+      .SetWorkgroupSize(moe_params.num_experts)
+      .SetDispatchGroupSize(moe_params.num_rows)
       .AddUniformVariables({static_cast<uint32_t>(moe_params.num_experts),
                             static_cast<uint32_t>(moe_params.num_rows)})
       .CacheHint(k_, moe_params.num_experts, is_fp16 ? "fp16" : "fp32");
