@@ -1442,13 +1442,13 @@ ONNX_MS_OPERATOR_SET_SCHEMA(
               static_cast<int64_t>(0))
         .Attr("use_sparse_mixer", "Whether to use sparse mixer", AttributeProto::INT, static_cast<int64_t>(0))
         .Attr("expert_weight_bits",
-              "Number of bits used in quantized weights. Default is 4 bits",
+              "Number of bits used in quantized weights. 0 means FP32 (no quantization), default is 4 bits",
               AttributeProto::INT,
               static_cast<int64_t>(4))
         .Attr("swiglu_fusion", "0: not fused, 1: fused and interleaved. 2: fused and not interleaved.", AttributeProto::INT, static_cast<int64_t>(0))
         .Attr("swiglu_limit", "The limit used to clamp inputs in SwiGLU. It is infinite when limit is not provided.", AttributeProto::FLOAT, OPTIONAL_VALUE)
-        .Attr("activation_alpha", "Alpha parameter used in activation function.", AttributeProto::FLOAT, 1.0f)
-        .Attr("activation_beta", "Beta parameter used in activation function.", AttributeProto::FLOAT, 0.0f)
+        .Attr("activation_alpha", "Alpha parameter used in activation function.", AttributeProto::FLOAT, 1.702f)
+        .Attr("activation_beta", "Beta parameter used in activation function. For SwiGLU, this controls the (linear + beta) term.", AttributeProto::FLOAT, 1.0f)
         .Input(0,
                "input",
                "2D input tensor with shape (num_rows, hidden_size) or 3D input tensor with shape "
@@ -1499,7 +1499,7 @@ ONNX_MS_OPERATOR_SET_SCHEMA(
                 "(batch_size, sequence_length, hidden_size)",
                 "T")
         .TypeConstraint("T", {"tensor(float)", "tensor(float16)", "tensor(bfloat16)"}, "Constrain input and output types to float tensors.")
-        .TypeConstraint("T1", {"tensor(uint8)"}, "Constrain weights type to uint8 tensors.")
+        .TypeConstraint("T1", {"tensor(uint8)", "tensor(float)", "tensor(float16)", "tensor(bfloat16)"}, "Constrain weights type to uint8 (quantized) or float (FP32 mode) tensors.")
         .TypeConstraint("T2", {"tensor(float)", "tensor(float16)", "tensor(bfloat16)"}, "Constrain scales type to float tensors.")
         .TypeAndShapeInferenceFunction(ONNX_NAMESPACE::propagateShapeAndTypeFromFirstInput));
 
