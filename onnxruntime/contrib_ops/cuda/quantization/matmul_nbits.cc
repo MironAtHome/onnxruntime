@@ -13,9 +13,11 @@
 #include "contrib_ops/cpu/utils/dump_tensor.h"
 #include "contrib_ops/cuda/quantization/matmul_nbits.cuh"
 #include "contrib_ops/cuda/quantization/dequantize_blockwise.cuh"
+#if USE_FPA_INTB_GEMM
 #include "contrib_ops/cuda/llm/fpA_intB_gemm/fpA_intB_gemm.h"
 #include "contrib_ops/cuda/llm/fpA_intB_gemm_adaptor.h"
 #include "contrib_ops/cuda/llm/fpA_intB_gemm_preprocessors.h"
+#endif
 #include "contrib_ops/cuda/llm/common/logger.h"
 #include "contrib_ops/cpu/quantization/matmul_nbits_helper.h"
 
@@ -27,6 +29,8 @@ namespace onnxruntime {
 namespace contrib {
 namespace cuda {
 using namespace onnxruntime::cuda;
+
+#if USE_FPA_INTB_GEMM
 using onnxruntime::llm::kernels::weight_only::GemmPluginProfilerManager;
 using onnxruntime::llm::kernels::weight_only::WeightOnlyGroupwiseQuantGemmPluginProfiler;
 using onnxruntime::llm::kernels::weight_only::WeightTypeId;
@@ -246,6 +250,7 @@ Status MatMulNBits<T>::PrePack_ZeroPoint([[maybe_unused]] const Tensor& tensor,
   }
   return Status::OK();
 }
+#endif
 
 template <typename T>
 Status MatMulNBits<T>::ComputeInternal(OpKernelContext* ctx) const {
@@ -300,6 +305,7 @@ Status MatMulNBits<T>::ComputeInternal(OpKernelContext* ctx) const {
 
   DUMP_TENSOR_INIT();
 
+#if USE_FPA_INTB_GEMM
   if constexpr (std::is_same<T, MLFloat16>::value || std::is_same<T, BFloat16>::value) {
     if (has_fpA_intB_gemm_) {
       // We expect weight/scale/zero_point(optional) inputs are initializers and have been prepacked.
@@ -356,6 +362,7 @@ Status MatMulNBits<T>::ComputeInternal(OpKernelContext* ctx) const {
       return Status::OK();
     }
   }
+#endif
 
   if ((reorder_idx_data == nullptr) && (!zero_points || !zero_points->IsDataType<T>())) {
     if (TryMatMulNBits(
